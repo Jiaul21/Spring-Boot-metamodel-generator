@@ -127,7 +127,7 @@ If you build locally via `mvn clean install`:
     <dependency>
         <groupId>com.jiaul</groupId>
         <artifactId>metamodel-generator</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
+        <version>${version}</version>
     </dependency>
 </dependencies>
 
