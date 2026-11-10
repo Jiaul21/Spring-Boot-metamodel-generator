@@ -1,6 +1,6 @@
 package com.jiaul.metamodelgenerator.processor;
 
-import com.jiaul.metamodelgenerator.metadata.FieldProperty;
+import com.jiaul.metamodelgenerator.metadata.ModelField;
 import com.squareup.javapoet.*;
 
 import javax.lang.model.element.Modifier;
@@ -19,9 +19,9 @@ public class PathClassGenerator {
             FieldExtractor extractor,
             Elements elementUtils
     ) {
-        ClassName fieldProperty = ClassName.get(FieldProperty.class);
+        ClassName modelField = ClassName.get(ModelField.class);
         TypeName wildcardProperty = ParameterizedTypeName.get(
-                fieldProperty,
+                modelField,
                 WildcardTypeName.subtypeOf(Object.class),
                 WildcardTypeName.subtypeOf(Object.class)
         );
@@ -39,7 +39,7 @@ public class PathClassGenerator {
         pathBuilder.addField(FieldSpec.builder(String.class, "_path", Modifier.PRIVATE, Modifier.FINAL).build());
 
         TypeName entityType = extractor.getBoxedTypeName(type.asType());
-        TypeName selfPropertyType = ParameterizedTypeName.get(fieldProperty, entityType, ClassName.get(Void.class));
+        TypeName selfPropertyType = ParameterizedTypeName.get(modelField, entityType, ClassName.get(Void.class));
         boolean hasFieldNamedProperty = fields.stream().anyMatch(f -> f.getName().equals("property"));
         if (!hasFieldNamedProperty) {
             pathBuilder.addField(FieldSpec.builder(selfPropertyType, "property", Modifier.PUBLIC, Modifier.FINAL).build());
@@ -57,7 +57,7 @@ public class PathClassGenerator {
             } else {
                 TypeName mainType = extractor.getBoxedTypeName(f.getType());
                 TypeName elemType = f.getElementType() != null ? extractor.getBoxedTypeName(f.getElementType()) : ClassName.get(Void.class);
-                TypeName propType = ParameterizedTypeName.get(fieldProperty, mainType, elemType);
+                TypeName propType = ParameterizedTypeName.get(modelField, mainType, elemType);
 
                 pathBuilder.addField(FieldSpec.builder(propType, f.getName(), Modifier.PUBLIC, Modifier.FINAL).build());
             }
@@ -85,7 +85,7 @@ public class PathClassGenerator {
                 .addStatement("this._path = prefix != null ? prefix : \"\"");
 
         if (!hasFieldNamedProperty) {
-            pathCtor.addStatement("this.property = new $T<>(this._path, $T.class, null)", fieldProperty, entityType);
+            pathCtor.addStatement("this.property = new $T<>(this._path, $T.class, null)", modelField, entityType);
         }
 
         // Initialize scalar properties
@@ -93,7 +93,7 @@ public class PathClassGenerator {
             if (!f.isEntityRelation()) {
                 TypeName mainType = extractor.getBoxedTypeName(f.getType());
                 TypeName elemType = f.getElementType() != null ? extractor.getBoxedTypeName(f.getElementType()) : ClassName.get(Void.class);
-                CodeBlock initBlock = extractor.buildFieldInit(fieldProperty, f.getName(), mainType, elemType, f.isCollection());
+                CodeBlock initBlock = extractor.buildFieldInit(modelField, f.getName(), mainType, elemType, f.isCollection());
 
                 pathCtor.addStatement("this.$L = $L", f.getName(), initBlock);
             }
@@ -107,7 +107,7 @@ public class PathClassGenerator {
             } else {
                 TypeName mainType = extractor.getBoxedTypeName(f.getType());
                 TypeName elemType = f.getElementType() != null ? extractor.getBoxedTypeName(f.getElementType()) : ClassName.get(Void.class);
-                CodeBlock initBlock = extractor.buildFieldInit(fieldProperty, f.getName(), mainType, elemType, f.isCollection());
+                CodeBlock initBlock = extractor.buildFieldInit(modelField, f.getName(), mainType, elemType, f.isCollection());
                 pathCtor.addStatement("_map.put($S, $L)", f.getName(), initBlock);
             }
         }
@@ -165,13 +165,6 @@ public class PathClassGenerator {
                 .addStatement("return property")
                 .build());
 
-        pathBuilder.addMethod(MethodSpec.methodBuilder("getType")
-                .addModifiers(Modifier.PUBLIC)
-                .returns(ParameterizedTypeName.get(ClassName.get(Class.class), WildcardTypeName.subtypeOf(Object.class)))
-                .addParameter(String.class, "fieldName")
-                .addStatement("return getProperty(fieldName).type()")
-                .build());
-
         pathBuilder.addMethod(MethodSpec.methodBuilder("path")
                 .addModifiers(Modifier.PUBLIC)
                 .returns(String.class)
@@ -184,7 +177,7 @@ public class PathClassGenerator {
         if (!hasFieldNamedProperty) {
             asPropMethod.addStatement("return this.property");
         } else {
-            asPropMethod.addStatement("return new $T<>(this._path, $T.class, null)", fieldProperty, entityType);
+            asPropMethod.addStatement("return new $T<>(this._path, $T.class, null)", modelField, entityType);
         }
         pathBuilder.addMethod(asPropMethod.build());
 

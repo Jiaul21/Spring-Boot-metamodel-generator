@@ -1,8 +1,8 @@
 package com.jiaul.metamodelgenerator.testmodel;
 
-import com.jiaul.metamodelgenerator.annotation.EntityFields;
+import com.jiaul.metamodelgenerator.annotation.ModelFields;
 
-@EntityFields
+@ModelFields(fields = true, maps = true, lists = true)
 public class NoGetterEntity {
     private Long id;
     private String title;

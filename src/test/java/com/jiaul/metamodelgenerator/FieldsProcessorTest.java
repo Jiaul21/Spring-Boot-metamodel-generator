@@ -1,11 +1,13 @@
 package com.jiaul.metamodelgenerator;
 
-import com.jiaul.metamodelgenerator.metadata.FieldProperty;
+import com.jiaul.metamodelgenerator.metadata.ModelField;
 import com.jiaul.metamodelgenerator.testmodel.Course;
 import com.jiaul.metamodelgenerator.testmodel.CourseFields;
 import com.jiaul.metamodelgenerator.testmodel.Department;
 import com.jiaul.metamodelgenerator.testmodel.NoGetterEntity;
 import com.jiaul.metamodelgenerator.testmodel.NoGetterEntityFields;
+import com.jiaul.metamodelgenerator.testmodel.SampleDto;
+import com.jiaul.metamodelgenerator.testmodel.SampleDtoFields;
 import com.jiaul.metamodelgenerator.testmodel.Student;
 import com.jiaul.metamodelgenerator.testmodel.StudentFields;
 import com.jiaul.metamodelgenerator.testmodel.TeacherRecord;
@@ -23,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class FieldsProcessorTest {
 
     @Test
-    @DisplayName("Should generate scalar static properties for Entity class")
+    @DisplayName("Should generate scalar static ModelField properties for Entity class")
     void testScalarProperties() {
         assertThat(StudentFields.id.name()).isEqualTo("id");
         assertThat(StudentFields.id.getName()).isEqualTo("id");
@@ -100,10 +102,9 @@ class FieldsProcessorTest {
         assertThat(TeacherRecordFields.course.title.name()).isEqualTo("course.title");
         assertThat(TeacherRecordFields.course.department.deptName.name()).isEqualTo("course.department.deptName");
 
-        // Record FIELD_MAP, getProperty, getType, and property descriptors
+        // Record FIELD_MAP, getProperty, and property descriptors
         assertThat(TeacherRecordFields.FIELD_MAP).containsKeys("id", "name", "subject", "course");
         assertThat(TeacherRecordFields.getProperty("course").type()).isEqualTo(Course.class);
-        assertThat(TeacherRecordFields.getType("course")).isEqualTo(Course.class);
         assertThat(TeacherRecordFields.course.property.name()).isEqualTo("course");
         assertThat(TeacherRecordFields.course.asProperty().type()).isEqualTo(Course.class);
         assertThat(TeacherRecordFields.asProperty().type()).isEqualTo(TeacherRecord.class);
@@ -127,7 +128,8 @@ class FieldsProcessorTest {
         assertThat(StudentFields.courses.title.toString()).isEqualTo("courses.title");
 
         // String concatenation test
-        String jpql = "SELECT s FROM Student s JOIN s." + StudentFields.courses + " c WHERE c." + CourseFields.title + " = :title";
+        String jpql = "SELECT s FROM Student s JOIN s." + StudentFields.courses + " c WHERE c." + CourseFields.title
+                + " = :title";
         assertThat(jpql).isEqualTo("SELECT s FROM Student s JOIN s.courses c WHERE c.title = :title");
 
         String deepJpql = "s." + StudentFields.courses.department.deptName;
@@ -140,23 +142,22 @@ class FieldsProcessorTest {
     }
 
     @Test
-    @DisplayName("Should support FIELD_MAP, getProperty, getType, and asProperty for relations")
+    @DisplayName("Should support FIELD_MAP, getProperty, and asProperty for relations")
     void testMetadataInspection() {
         // Scalar and relation fields all in FIELD_MAP
         assertThat(StudentFields.FIELD_MAP).containsKeys("id", "name", "age", "tags", "scores", "course", "courses");
         assertThat(CourseFields.FIELD_MAP).containsKeys("id", "title", "department", "student");
 
         // Scalar metadata
-        FieldProperty<?, ?> nameProp = StudentFields.getProperty("name");
+        ModelField<?, ?> nameProp = StudentFields.getProperty("name");
         assertThat(nameProp.name()).isEqualTo("name");
-        assertThat(StudentFields.getType("name")).isEqualTo(String.class);
+        assertThat(nameProp.type()).isEqualTo(String.class);
 
         // Relation metadata in CourseFields
-        FieldProperty<?, ?> deptProp = CourseFields.getProperty("department");
+        ModelField<?, ?> deptProp = CourseFields.getProperty("department");
         assertThat(deptProp.name()).isEqualTo("department");
         assertThat(deptProp.type()).isEqualTo(Department.class);
         assertThat(deptProp.elementType()).isNull();
-        assertThat(CourseFields.getType("department")).isEqualTo(Department.class);
 
         // Direct relation property access
         assertThat(CourseFields.department.property).isNotNull();
@@ -165,11 +166,10 @@ class FieldsProcessorTest {
         assertThat(CourseFields.department.asProperty().name()).isEqualTo("department");
 
         // Collection relation metadata in StudentFields
-        FieldProperty<?, ?> coursesProp = StudentFields.getProperty("courses");
+        ModelField<?, ?> coursesProp = StudentFields.getProperty("courses");
         assertThat(coursesProp.name()).isEqualTo("courses");
         assertThat(coursesProp.type()).isEqualTo(List.class);
         assertThat(coursesProp.elementType()).isEqualTo(Course.class);
-        assertThat(StudentFields.getType("courses")).isEqualTo(List.class);
 
         // Direct relation navigation still works seamlessly
         assertThat(CourseFields.department.deptName.name()).isEqualTo("department.deptName");
@@ -185,45 +185,112 @@ class FieldsProcessorTest {
     }
 
     @Test
-    @DisplayName("Should extract non-null field map from Entity class")
-    void testEntityValuesExtraction() {
-        Department dept = new Department();
-        dept.setId(10L);
-        dept.setDeptName("Computer Science");
-
+    @DisplayName("Should extract full map and non-null map from Entity class")
+    void testEntityMapExtraction() {
         Student student = new Student();
         student.setId(1L);
         student.setName("Alice");
         student.setAge(20);
 
-        Map<String, Object> fieldMap = StudentFields.toNonNullFieldMap(student);
-        assertThat(fieldMap.get("id")).isEqualTo(1L);
-        assertThat(fieldMap.get("name")).isEqualTo("Alice");
-        assertThat(fieldMap.get("age")).isEqualTo(20);
+        // toNonNullMap (excludes null fields like 'course', 'scores')
+        Map<String, Object> nonNullMap = StudentFields.toNonNullMap(student);
+        assertThat(nonNullMap.get("id")).isEqualTo(1L);
+        assertThat(nonNullMap.get("name")).isEqualTo("Alice");
+        assertThat(nonNullMap.get("age")).isEqualTo(20);
+        assertThat(nonNullMap).doesNotContainKey("course");
+        assertThat(nonNullMap).doesNotContainKey("scores");
+
+        // toMap (includes null fields)
+        Map<String, Object> fullMap = StudentFields.toMap(student);
+        assertThat(fullMap.get("id")).isEqualTo(1L);
+        assertThat(fullMap.get("name")).isEqualTo("Alice");
+        assertThat(fullMap).containsKey("course");
+        assertThat(fullMap.get("course")).isNull();
 
         // Null safe
-        assertThat(StudentFields.toNonNullFieldMap(null)).isEmpty();
+        assertThat(StudentFields.toMap(null)).isEmpty();
+        assertThat(StudentFields.toNonNullMap(null)).isEmpty();
     }
 
     @Test
-    @DisplayName("Should extract non-null field map from Java Record")
+    @DisplayName("Should extract full values list and non-null values list from Entity class")
+    void testEntityListExtraction() {
+        Student student = new Student();
+        student.setId(1L);
+        student.setName("Alice");
+        student.setAge(20);
+
+        // toNonNullValues only contains non-null values
+        List<Object> nonNullValues = StudentFields.toNonNullValues(student);
+        assertThat(nonNullValues).containsExactly(1L, "Alice", 20);
+
+        // toValues contains all values in field order including nulls
+        List<Object> allValues = StudentFields.toValues(student);
+        assertThat(allValues.get(0)).isEqualTo(1L);
+        assertThat(allValues.get(1)).isEqualTo("Alice");
+        assertThat(allValues.get(2)).isEqualTo(20);
+        assertThat(allValues).containsNull();
+        assertThat(allValues.get(3)).isNull();
+
+        // Null safe
+        assertThat(StudentFields.toValues(null)).isEmpty();
+        assertThat(StudentFields.toNonNullValues(null)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should omit all ModelField properties and Path class when fields = false")
+    void testFieldsDisabledOnDto() {
+        // SampleDto has fields = false, maps = true, lists = true
+        // 1. Verify that maps and lists are generated
+        SampleDto dto = new SampleDto(10L, "D-10", null);
+        Map<String, Object> map = SampleDtoFields.toMap(dto);
+        assertThat(map.get("id")).isEqualTo(10L);
+        assertThat(map.get("code")).isEqualTo("D-10");
+        assertThat(map.get("department")).isNull();
+
+        List<Object> values = SampleDtoFields.toValues(dto);
+        assertThat(values.get(0)).isEqualTo(10L);
+        assertThat(values.get(1)).isEqualTo("D-10");
+        assertThat(values.get(2)).isNull();
+
+        // 2. Verify that NO Path inner class is generated
+        assertThat(SampleDtoFields.class.getDeclaredClasses()).isEmpty();
+
+        // 3. Verify that NO static ModelField constants or FIELD_MAP are generated
+        assertThat(SampleDtoFields.class.getDeclaredFields()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should extract maps and lists from Java Record")
     void testRecordValuesExtraction() {
         TeacherRecord teacher = new TeacherRecord(101L, "Dr. Smith", "Mathematics", null);
 
-        Map<String, Object> fieldMap = TeacherRecordFields.toNonNullFieldMap(teacher);
-        assertThat(fieldMap.get("id")).isEqualTo(101L);
-        assertThat(fieldMap.get("name")).isEqualTo("Dr. Smith");
-        assertThat(fieldMap.get("subject")).isEqualTo("Mathematics");
+        Map<String, Object> nonNullMap = TeacherRecordFields.toNonNullMap(teacher);
+        assertThat(nonNullMap.get("id")).isEqualTo(101L);
+        assertThat(nonNullMap.get("name")).isEqualTo("Dr. Smith");
+        assertThat(nonNullMap.get("subject")).isEqualTo("Mathematics");
+        assertThat(nonNullMap).doesNotContainKey("course");
+
+        Map<String, Object> fullMap = TeacherRecordFields.toMap(teacher);
+        assertThat(fullMap.get("id")).isEqualTo(101L);
+        assertThat(fullMap).containsKey("course");
+        assertThat(fullMap.get("course")).isNull();
+
+        List<Object> values = TeacherRecordFields.toValues(teacher);
+        assertThat(values.get(0)).isEqualTo(101L);
+        assertThat(values.get(1)).isEqualTo("Dr. Smith");
+        assertThat(values.get(2)).isEqualTo("Mathematics");
+        assertThat(values.get(3)).isNull();
     }
 
     @Test
-    @DisplayName("Should generate metamodel without reflection for Entity without getters")
+    @DisplayName("Should handle Entity without getters safely")
     void testNoGetterEntityExtraction() {
         assertThat(NoGetterEntityFields.id.name()).isEqualTo("id");
         assertThat(NoGetterEntityFields.title.name()).isEqualTo("title");
 
         NoGetterEntity entity = new NoGetterEntity(50L, "Sample Title");
-        Map<String, Object> fieldMap = NoGetterEntityFields.toNonNullFieldMap(entity);
+        Map<String, Object> fieldMap = NoGetterEntityFields.toNonNullMap(entity);
         assertThat(fieldMap).isEmpty();
     }
 }

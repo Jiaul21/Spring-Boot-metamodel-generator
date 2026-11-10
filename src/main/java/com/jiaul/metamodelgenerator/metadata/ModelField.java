@@ -1,7 +1,7 @@
 package com.jiaul.metamodelgenerator.metadata;
 
 /**
- * Metadata descriptor for an entity field or relation path, holding its path/name,
+ * Metadata descriptor for a model field or relation path, holding its path/name,
  * primary type, and element type (if collection/array).
  * <p>
  * Implements {@link CharSequence} so it can be passed directly to string concatenation,
@@ -13,7 +13,7 @@ package com.jiaul.metamodelgenerator.metadata;
  * @param type        the runtime class representing the field type
  * @param elementType the runtime class of the collection element, or {@code null}
  */
-public record FieldProperty<T, E>(
+public record ModelField<T, E>(
         String name,
         Class<T> type,
         Class<E> elementType
@@ -57,3 +57,4 @@ public record FieldProperty<T, E>(
         return name != null ? name : "";
     }
 }
+

@@ -21,7 +21,6 @@
 
     <properties>
         <java.version>17</java.version>
-        <spring-boot.version>3.4.3</spring-boot.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -61,23 +60,6 @@
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service-annotations</artifactId>
             <version>1.1.1</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- Optional Web & Jackson dependencies (provided scope) -->
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-            <version>6.2.3</version>
-            <scope>provided</scope>
-            <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>2.18.2</version>
-            <scope>provided</scope>
             <optional>true</optional>
         </dependency>
 

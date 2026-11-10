@@ -1,10 +1,10 @@
 package com.jiaul.metamodelgenerator.testmodel;
 
-import com.jiaul.metamodelgenerator.annotation.EntityFields;
+import com.jiaul.metamodelgenerator.annotation.ModelFields;
 import java.util.List;
 import java.util.Map;
 
-@EntityFields
+@ModelFields(fields = true, maps = true, lists = true)
 public class Student {
     private Long id;
     private String name;

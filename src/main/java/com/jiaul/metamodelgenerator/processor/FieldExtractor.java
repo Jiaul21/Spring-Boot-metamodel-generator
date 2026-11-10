@@ -1,6 +1,6 @@
 package com.jiaul.metamodelgenerator.processor;
 
-import com.jiaul.metamodelgenerator.annotation.EntityFields;
+import com.jiaul.metamodelgenerator.annotation.ModelFields;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
@@ -10,7 +10,6 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import java.util.*;
 
@@ -20,11 +19,9 @@ import java.util.*;
 public class FieldExtractor {
 
     private final Types typeUtils;
-    private final Elements elementUtils;
 
-    public FieldExtractor(Types typeUtils, Elements elementUtils) {
+    public FieldExtractor(Types typeUtils) {
         this.typeUtils = typeUtils;
-        this.elementUtils = elementUtils;
     }
 
     public List<FieldMeta> extractFields(TypeElement type, Map<String, TypeElement> registry) {
@@ -47,7 +44,7 @@ public class FieldExtractor {
                         String name = v.getSimpleName().toString();
                         if (seenNames.add(name)) {
                             String getter = resolveGetter(current, v);
-                            boolean hasGetter = hasMethod(current, getter) || hasLombokGetter(current, v);
+                            boolean hasGetter = getter != null;
                             list.add(createFieldMeta(name, v.asType(), getter, hasGetter, registry));
                         }
                     }
@@ -60,7 +57,6 @@ public class FieldExtractor {
                 }
             }
         }
-
         return list;
     }
 
@@ -115,15 +111,29 @@ public class FieldExtractor {
             return getName;
         }
 
-        return field.asType().getKind() == TypeKind.BOOLEAN ? "is" + capitalized : "get" + capitalized;
+        if (hasMethod(type, name)) {
+            return name;
+        }
+
+        if (hasLombokGetter(type, field)) {
+            return (field.asType().getKind() == TypeKind.BOOLEAN) ? ("is" + capitalized) : ("get" + capitalized);
+        }
+
+        return null;
     }
 
     public boolean hasMethod(TypeElement type, String methodName) {
+        if (methodName == null) {
+            return false;
+        }
         TypeElement current = type;
         while (current != null && !current.getQualifiedName().contentEquals("java.lang.Object")) {
             for (Element e : current.getEnclosedElements()) {
-                if (e.getKind() == ElementKind.METHOD && e.getSimpleName().contentEquals(methodName)) {
-                    return true;
+                if (e.getKind() == ElementKind.METHOD) {
+                    ExecutableElement m = (ExecutableElement) e;
+                    if (m.getSimpleName().contentEquals(methodName) && m.getParameters().isEmpty()) {
+                        return true;
+                    }
                 }
             }
             TypeMirror superclass = current.getSuperclass();
@@ -174,7 +184,7 @@ public class FieldExtractor {
     }
 
     public CodeBlock buildFieldInit(
-            ClassName fieldProperty,
+            ClassName fieldDescriptor,
             String name,
             TypeName mainType,
             TypeName elemType,
@@ -183,7 +193,7 @@ public class FieldExtractor {
         if (isCollection) {
             return CodeBlock.of(
                     "new $T<>(prefix(this._path, $S), $T.class, $T.class)",
-                    fieldProperty,
+                    fieldDescriptor,
                     name,
                     mainType,
                     elemType
@@ -191,8 +201,8 @@ public class FieldExtractor {
         }
 
         return CodeBlock.of(
-                "new $T<>(prefix(this._path, $S), $T.class, null)",
-                fieldProperty,
+                    "new $T<>(prefix(this._path, $S), $T.class, null)",
+                fieldDescriptor,
                 name,
                 mainType
         );
@@ -201,8 +211,10 @@ public class FieldExtractor {
     public TypeElement getAnnotatedEntity(TypeMirror t, Map<String, TypeElement> registry) {
         if (t instanceof DeclaredType dt && dt.asElement() instanceof TypeElement te) {
             String qName = te.getQualifiedName().toString();
-            if (registry.containsKey(qName) || te.getAnnotation(EntityFields.class) != null) {
-                return te;
+            TypeElement target = registry.containsKey(qName) ? registry.get(qName) : te;
+            ModelFields mf = target.getAnnotation(ModelFields.class);
+            if (mf != null && mf.fields()) {
+                return target;
             }
         }
         return null;
