@@ -158,6 +158,15 @@ If your project uses **Project Lombok** (`@Getter`, `@Setter`, `@Data`), Lombok 
 
 ---
 
+## 🤝 Ecosystem Synergy with `jpa-helper`
+
+`metamodel-generator` and [`jpa-helper`](https://github.com/Jiaul21/Spring-Boot-jpa-helper) form a complementary stack:
+- **`metamodel-generator`**: Analyzes classes at compile time, creating typed descriptors (`ModelField`) implementing `CharSequence` and zero-reflection map/list extractors.
+- **`jpa-helper`**: Consumes `CharSequence` descriptors to execute dynamic multi-level `LEFT JOIN FETCH` queries, Cartesian-product-safe collection joins, and high-performance CASE-WHEN bulk batch updates.
+- For complete real-world examples, see Section 8 of the [jpa-helper README](https://github.com/Jiaul21/Spring-Boot-jpa-helper).
+
+---
+
 ## 🔍 Troubleshooting Common Issues
 
 ### Issue 1: "Cannot find symbol `StudentFields`"

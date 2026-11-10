@@ -35,6 +35,7 @@ A high-performance, compile-time annotation processor and type-safe metamodel ge
   - [8. Direct Relation & Root Descriptors (`.property`, `.asProperty()`)](#8-direct-relation--root-descriptors-property-asproperty)
   - [9. Query Root Aliasing (`path("alias")`)](#9-query-root-aliasing-pathalias)
   - [10. Bidirectional & Recursive Cycle Safety](#10-bidirectional--recursive-cycle-safety)
+  - [11. Seamless Integration with `jpa-helper` (Dynamic Fetch Joins & Batch Updates)](#11-seamless-integration-with-jpa-helper-dynamic-fetch-joins--batch-updates)
 - [IDE Configuration](#-ide-configuration)
 - [Building From Source](#-building-from-source)
 - [Changelog](#-changelog)
@@ -628,6 +629,64 @@ assertThat(CourseFields.student.courses.student).isNull();
 String extendedPath = CourseFields.student.courses.student().name.name();
 // Evaluates to: "student.courses.student.name"
 ```
+
+---
+
+### 11. Seamless Integration with `jpa-helper` (Dynamic Fetch Joins & Batch Updates)
+
+`metamodel-generator` is designed to pair directly with [`Spring-Boot-jpa-helper`](https://github.com/Jiaul21/Spring-Boot-jpa-helper), transforming dynamic multi-level fetch joins and high-performance batch updates into 100% type-safe operations.
+
+#### 1. Type-Safe Dynamic Fetch Joins (`SelectHelper`)
+Because all generated metamodel properties and relation paths implement `java.lang.CharSequence`, you can pass them directly to `jpa-helper` methods without writing error-prone strings or calling `.toString()`:
+
+```java
+// Eagerly fetch student, department, and profile -> advisor in a single SQL query:
+Student student = studentHelper.fetchByID(id, List.of(
+    StudentFields.department,
+    StudentFields.profile.advisor,
+    StudentFields.courses.teacher
+));
+```
+
+#### 2. Nested Condition Lookups with Automatic Joins
+When filtering by related attributes, `jpa-helper` automatically detects and injects the necessary `LEFT JOIN FETCH`:
+
+```java
+// Nested condition automatically joins department:
+List<Student> students = studentHelper.fetchBy(
+    StudentFields.department.code, 
+    "CSE", 
+    List.of(StudentFields.courses)
+);
+```
+
+#### 3. Direct Field Updates (`UpdateHelper`)
+```java
+// Atomic single-field update without string literals:
+studentHelper.updateFieldByID(studentId, StudentFields.status, "ACTIVE");
+```
+
+#### 4. Zero-Reflection Bulk Batch Updates (`IdValues` & `IdFieldValue`)
+`metamodel-generator`'s `toValues()` and `toNonNullMap()` directly power `jpa-helper`'s CASE-WHEN bulk batch engines:
+
+```java
+// Feed compile-time ordered values directly into jpa-helper's IdValues:
+public record StudentGradeDto(Long studentId, String grade, Integer credits) implements IdValues {
+    @Override public Object getID() { return studentId; }
+    @Override public List<Object> getValues() {
+        return StudentGradeDtoFields.toValues(this); // Zero reflection!
+    }
+}
+
+// Single-query batch update across multiple rows:
+studentHelper.updateBulkEvenFields(
+    List.of(StudentFields.grade, StudentFields.credits), 
+    studentGradeList
+);
+```
+
+> [!TIP]
+> For complete guides, architectural details, and advanced patterns, visit the [jpa-helper Repository & Documentation](https://github.com/Jiaul21/Spring-Boot-jpa-helper).
 
 ---
 
