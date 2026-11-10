@@ -181,3 +181,10 @@ If your project uses **Project Lombok** (`@Getter`, `@Setter`, `@Data`), Lombok 
 - **Solution**:
   1. Add standard getters or use Lombok `@Getter`.
   2. Verify that Lombok is ordered before `metamodel-generator` in `<annotationProcessorPaths>`.
+
+---
+
+## 📜 Version History & Migrations
+
+For breaking changes, migration instructions, and a full version history, refer to [CHANGELOG.md](CHANGELOG.md).
+

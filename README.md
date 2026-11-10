@@ -37,6 +37,7 @@ A high-performance, compile-time annotation processor and type-safe metamodel ge
   - [10. Bidirectional & Recursive Cycle Safety](#10-bidirectional--recursive-cycle-safety)
 - [IDE Configuration](#-ide-configuration)
 - [Building From Source](#-building-from-source)
+- [Changelog](#-changelog)
 - [License](#-license)
 
 ---
@@ -651,6 +652,12 @@ mvn clean test
 # Build thin JAR, source JAR, Javadoc JAR, and install to local ~/.m2
 mvn clean install
 ```
+
+---
+
+## 📜 Changelog
+
+For a detailed history of additions, changes, deprecations, and removals across releases, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
